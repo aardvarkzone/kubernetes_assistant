@@ -16,7 +16,7 @@ def load_kubernetes_config():
         logging.info("Success loading kubeconfig.")
     except ConfigException as e:
         logging.error(f"Failed to load kubeconfig: {e}")
-        raise e
+        # raise e
 
 def get_openai_key():
     """
