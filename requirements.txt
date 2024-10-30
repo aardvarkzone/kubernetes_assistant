@@ -1,0 +1,10 @@
+requests
+Flask
+pydantic
+kubernetes
+openai
+python-dotenv
+datetime
+logging
+os
+dotenv

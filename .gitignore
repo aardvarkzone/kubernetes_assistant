@@ -1,0 +1,4 @@
+.env
+agent.log
+minikube-darvin-arm64
+__pycache__/
