@@ -18,27 +18,43 @@ def interpret_query_with_gpt(query):
             "role": "system",
             "content": (
                 "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
-                "For each query, try to generate a 'kubectl' command that will execute the requested action.\n\n"
+                "Your goal is to generate accurate 'kubectl' commands for Kubernetes clusters. Each command should directly retrieve the requested data if possible.\n"
+                "Always include `--kubeconfig ~/.kube/config` in each command to specify the configuration file.\n\n"
                 
-                "Fields in response JSON:\n"
-                "- 'kubectl_command': The exact kubectl command to run to satisfy the query.\n"
+                "Return responses in this JSON format:\n"
+                "- 'kubectl_command': The kubectl command to run to satisfy the query.\n"
                 
-                "Examples:\n"
-                "- Query: 'How many pods are in the default namespace?'\n"
-                "  Response: {\"kubectl_command\": \"kubectl get pods -n default --no-headers | wc -l\"}\n"
+                "Guidelines for generating commands:\n"
+                "1. **Counting Resources**:\n"
+                "   - Avoid using `wc -l` for counting, as it can be inaccurate. Instead, retrieve JSON output and count items programmatically.\n"
+                "   - Example: For 'How many pods are there?', respond with:\n"
+                "     {\"kubectl_command\": \"kubectl get pods --all-namespaces -o json --kubeconfig ~/.kube/config | jq '.items | length'\"}\n\n"
                 
-                "- Query: 'What is the IP of the pod nginx in the web namespace?'\n"
-                "  Response: {\"kubectl_command\": \"kubectl get pod nginx -n web -o=jsonpath='{.status.podIP}'\"}\n"
-                
-                "- Query: 'Show logs for pod my-pod in the default namespace.'\n"
-                "  Response: {\"kubectl_command\": \"kubectl logs my-pod -n default\"}\n\n"
-                
-                "If the query does not involve a specific Kubernetes command, respond with a generic answer in the following JSON format:\n"
-                "{\"general_response\": \"<informative answer here>\"}\n"
-                
-                "Respond with the JSON only, without additional commentary."
+                "2. **Querying Resource Status**:\n"
+                "   - Use `-o=jsonpath` to query specific fields like `.status`, `.spec`, or `.metadata`. For instance, to get the status of a service or pod, target `.status.phase` or `.status.loadBalancer` as appropriate.\n"
+                "   - Example: For 'What is the status of harbor registry?', respond with:\n"
+                "     {\"kubectl_command\": \"kubectl get svc harbor-registry -o=jsonpath='{.status}' --kubeconfig ~/.kube/config\"}\n\n"
+
+                "3. **Accessing IPs and Ports**:\n"
+                "   - To get a pod or service's IP, use `.status.podIP` or `.status.loadBalancer.ingress[0].ip`.\n"
+                "   - For container or service ports, access `.spec.ports[]` and look for `targetPort` or `containerPort`.\n"
+                "   - Example: For 'What is the container port for harbor-core?', respond with:\n"
+                "     {\"kubectl_command\": \"kubectl get pods -l app=harbor-core -o=jsonpath='{.items[0].spec.containers[0].ports[0].containerPort}' --kubeconfig ~/.kube/config\"}\n\n"
+
+                "4. **Handling Probes (Readiness/Liveness)**:\n"
+                "   - Use `.spec.containers[].readinessProbe` or `.livenessProbe` for probe paths, often located under `httpGet.path`.\n"
+                "   - Example: For 'What is the readiness probe path for the harbor core?', respond with:\n"
+                "     {\"kubectl_command\": \"kubectl get pods -l app=harbor-core -o=jsonpath='{.items[0].spec.containers[0].readinessProbe.httpGet.path}' --kubeconfig ~/.kube/config\"}\n\n"
+
+                "5. **Accessing PostgreSQL Configuration Data**:\n"
+                "   - For questions requiring data outside of kubectl commands (e.g., environment variables or database configuration), use `kubectl exec` to access pods directly.\n"
+                "   - Example: For 'What is the name of the database in PostgreSQL used by harbor?', respond with:\n"
+                "     {\"kubectl_command\": \"kubectl exec -n harbor $(kubectl get pod -n harbor -l app=harbor-database -o jsonpath='{.items[0].metadata.name}' --kubeconfig ~/.kube/config) --kubeconfig ~/.kube/config -- printenv POSTGRES_DB\"}\n\n"
+
+                "Respond only with the JSON response without extra commentary."
             )
         }
+
 
         user_message = {"role": "user", "content": f"Interpret this query: {query}"}
 
