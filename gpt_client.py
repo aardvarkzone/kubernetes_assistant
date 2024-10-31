@@ -51,7 +51,7 @@ def interpret_query_with_gpt(query):
                 "   - Example: For 'What is the name of the database in PostgreSQL used by harbor?', respond with:\n"
                 "     {\"kubectl_command\": \"kubectl exec -n harbor $(kubectl get pod -n harbor -l app=harbor-database -o jsonpath='{.items[0].metadata.name}' --kubeconfig ~/.kube/config) --kubeconfig ~/.kube/config -- printenv POSTGRES_DB\"}\n\n"
 
-                "Respond only with the JSON response without extra commentary."
+                "Respond only with the JSON response without extra commentary. If the query is a general question unrelated to specific Kubernetes commands, respond with a 'general_response' JSON field instead of 'kubectl_command'."
             )
         }
 
