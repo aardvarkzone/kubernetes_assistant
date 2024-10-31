@@ -44,8 +44,8 @@ def create_query():
         if not structured_query or "error" in structured_query:
             return jsonify(structured_query), 500
 
-        # Execute kubectl command based on GPT's response
-        answer = handle_k8s_query(structured_query)
+        # Execute kubectl command based on GPT's response, passing `query` as the second argument
+        answer = handle_k8s_query(structured_query, query)
         logging.info(f"Generated answer: {answer}")
 
         return jsonify({"query": query, "answer": ensure_string(answer)})
@@ -53,6 +53,7 @@ def create_query():
     except Exception as e:
         logging.error(f"Error processing query: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error."}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
