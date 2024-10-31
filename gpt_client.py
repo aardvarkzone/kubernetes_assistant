@@ -4,6 +4,7 @@ import logging
 import json
 from openai import OpenAI
 from config import get_openai_key
+import time
 
 client_openai = OpenAI(api_key=get_openai_key())
 
@@ -14,12 +15,14 @@ def interpret_query_with_gpt(query):
     """
     def gpt_request(prompt_variant):
         """
-        Attempts to generate a command or general response from GPT-4 using a specific prompt variant.
+        Attempts to generate a command or general response from GPT-4 using a specific prompt variant,
+        retrying up to three times if the request fails.
         """
-        try:
-            # Define different prompt variations, all with the full set of detailed instructions
-            base_message_content = (
-                "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
+        for attempt in range(3):  # Retry three times if needed
+            try:
+                # Define different prompt variations, all with the full set of detailed instructions
+                base_message_content = (
+                    "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
                 "Your goal is to generate accurate 'kubectl' commands for Kubernetes clusters when possible. Each command should directly retrieve the requested data if available.\n"
                 "If a query does not require a Kubernetes command, provide a general response in JSON format.\n\n"
                 
@@ -56,43 +59,45 @@ def interpret_query_with_gpt(query):
                 "   - Example: For 'What is the name of the database in PostgreSQL used by harbor?', respond with:\n"
                 "     {\"kubectl_command\": \"kubectl exec -n harbor $(kubectl get pod -n harbor -l app=harbor-database -o jsonpath='{.items[0].metadata.name}' --kubeconfig ~/.kube/config) --kubeconfig ~/.kube/config -- printenv POSTGRES_DB\"}\n\n"
                 
-                "Respond only with the JSON response without extra commentary. If the query is a general question unrelated to specific Kubernetes commands, respond with a 'general_response' JSON field instead of 'kubectl_command'."
-            )
-
-            # Modify instructions slightly based on variant
-            if prompt_variant == 2:
-                system_message_content = base_message_content + (
-                    "\n\nEnsure each command includes `--kubeconfig ~/.kube/config` for specificity in environment handling.\n"
-                    "Be concise, and validate JSON paths to ensure data accuracy."
+                "Respond only with the JSON response without extra commentary."
                 )
-            elif prompt_variant == 3:
-                system_message_content = base_message_content + (
-                    "\n\nFor cases where errors occur, double-check JSON path accuracy or consider alternative commands."
+
+                if prompt_variant == 2:
+                    system_message_content = base_message_content + (
+                        "\n\nEnsure each command includes `--kubeconfig ~/.kube/config` for specificity in environment handling.\n"
+                        "Be concise, and validate JSON paths to ensure data accuracy."
+                    )
+                elif prompt_variant == 3:
+                    system_message_content = base_message_content + (
+                        "\n\nFor cases where errors occur, double-check JSON path accuracy or consider alternative commands."
+                        "If the query is a general question unrelated to specific Kubernetes commands, respond with a 'general_response' JSON field instead of 'kubectl_command'."
+                    )
+                else:
+                    system_message_content = base_message_content  # Default variant
+
+                system_message = {"role": "system", "content": system_message_content}
+                user_message = {"role": "user", "content": f"Interpret this query: {query}"}
+
+                response = client_openai.chat.completions.create(
+                    model="gpt-4",
+                    messages=[system_message, user_message],
+                    max_tokens=100,
+                    temperature=0.3
                 )
-            else:
-                system_message_content = base_message_content  # Default
 
-            system_message = {"role": "system", "content": system_message_content}
-            user_message = {"role": "user", "content": f"Interpret this query: {query}"}
+                gpt_answer = response.choices[0].message.content.strip()
+                logging.debug(f"GPT-4 response (variant {prompt_variant}, attempt {attempt + 1}): {gpt_answer}")
 
-            response = client_openai.chat.completions.create(
-                model="gpt-4",
-                messages=[system_message, user_message],
-                max_tokens=100,
-                temperature=0.3
-            )
+                structured_response = json.loads(gpt_answer)
+                if 'kubectl_command' in structured_response or 'general_response' in structured_response:
+                    return structured_response  # Return if valid response
 
-            gpt_answer = response.choices[0].message.content.strip()
-            logging.debug(f"GPT-4 response (variant {prompt_variant}): {gpt_answer}")
+            except json.JSONDecodeError:
+                logging.error("Failed to parse GPT response as JSON.")
+            except Exception as e:
+                logging.error(f"Error generating GPT-4 response with variant {prompt_variant}, attempt {attempt + 1}: {e}", exc_info=True)
+                time.sleep(1)  # Optional delay to avoid quick retry if there's a consistent error
 
-            structured_response = json.loads(gpt_answer)
-            if 'kubectl_command' in structured_response or 'general_response' in structured_response:
-                return structured_response  # Return if valid response
-
-        except json.JSONDecodeError:
-            logging.error("Failed to parse GPT response as JSON.")
-        except Exception as e:
-            logging.error(f"Error generating GPT-4 response with variant {prompt_variant}: {e}", exc_info=True)
         return None
 
     # Try up to three prompt variants
@@ -103,3 +108,18 @@ def interpret_query_with_gpt(query):
 
     # If all attempts fail
     return {"general_response": "Could not generate a specific command. Please refine your question or try a different query."}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
