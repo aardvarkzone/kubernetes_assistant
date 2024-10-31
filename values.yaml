@@ -1,0 +1,31 @@
+# values.yaml
+expose:
+  tls:
+    enabled: true
+    auto:
+      commonName: "harbor.local"  # Or replace with the appropriate domain/IP for your setup
+
+
+harborAdminPassword: "Harbor12345"
+
+persistence:
+  enabled: true
+  persistentVolumeClaim:
+    registry:
+      storageClass: ""
+      accessMode: ReadWriteOnce
+      size: 5Gi
+database:
+  type: internal
+  internal:
+    password: "password"
+
+core:
+  secret: "coresecret"
+
+jobservice:
+  secret: "jobsecret"
+
+redis:
+  internal:
+    password: "redispassword"

@@ -1,24 +1,23 @@
 # main.py
+
 import logging
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from dotenv import load_dotenv
 
 from config import load_kubernetes_config
-from gpt_client import get_gpt_response
+from gpt_client import interpret_query_with_gpt
 from k8s_client import handle_k8s_query
 from models import QueryResponse
 from utils import ensure_string
 
 load_dotenv()
 
-# Configure loggings
+# Configure logging
 logging.basicConfig(
     level=logging.DEBUG, 
     format='%(asctime)s %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("agent.log"),
-    ]
+    handlers=[logging.FileHandler("agent.log")]
 )
 
 app = Flask(__name__)
@@ -67,26 +66,15 @@ def create_query():
 
 def process_query(query):
     """
-    Determines if the query is related to Kubernetes or requires GPT-4 assistance.
-    Routes the query to the appropriate handler.
+    Sends the query to GPT for interpretation and then dynamically calls Kubernetes functions based on GPT's response.
     """
-    query_lower = query.lower()
+    # Interpret the query using GPT to get structured response
+    structured_query = interpret_query_with_gpt(query)
+    if not structured_query:
+        return "Could not understand the query."
 
-    # Define keywords for K8s queries
-    k8s_keywords = [
-        "pod", "pods", "node", "nodes", "service", "services",
-        "deployment", "deployments", "namespace", "namespaces"
-    ]
-
-    # Check if any K8s keyword is in the query
-    if any(keyword in query_lower for keyword in k8s_keywords):
-        logging.info("Kubernetes query detected.")
-        answer = handle_k8s_query(query_lower, query)
-    else:
-        logging.info("Non-Kubernetes query detected, using GPT-4.")
-        answer = get_gpt_response(query)
-
-    # Use the utility function to ensure the answer is a string
+    # Pass structured query to Kubernetes handler
+    answer = handle_k8s_query(structured_query)
     return ensure_string(answer)
 
 if __name__ == "__main__":
