@@ -25,13 +25,18 @@ def handle_k8s_query(structured_query):
     """
     Handles Kubernetes-related queries by executing the kubectl command provided in the structured response.
     """
+    # Check if the response includes a general response instead of a command
     if "general_response" in structured_query:
-        # Return a general response if no specific Kubernetes command is provided
-        return structured_query["general_response"]
-
-    kubectl_command = structured_query.get("kubectl_command", "")
+        general_response = structured_query["general_response"]
+        logging.info(f"General response provided: {general_response}")
+        return general_response
+    
+    # Check if a kubectl command was provided
+    kubectl_command = structured_query.get("kubectl_command")
     if not kubectl_command:
-        return "No kubectl command provided in the structured query."
+        logging.warning("No kubectl command or general response provided in the structured query.")
+        return "No kubectl command or general response available for this query."
 
+    # Execute the provided kubectl command
     logging.info(f"Executing kubectl command: {kubectl_command}")
     return execute_kubectl_command(kubectl_command)
