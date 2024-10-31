@@ -18,12 +18,15 @@ def interpret_query_with_gpt(query):
             "role": "system",
             "content": (
                 "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
-                "Your goal is to generate accurate 'kubectl' commands for Kubernetes clusters. Each command should directly retrieve the requested data if possible.\n"
-                "Always include `--kubeconfig ~/.kube/config` in each command to specify the configuration file.\n\n"
+                "Your goal is to generate accurate 'kubectl' commands for Kubernetes clusters when possible. Each command should directly retrieve the requested data if available.\n"
+                "If a query does not require a Kubernetes command, provide a general response in JSON format.\n"
                 
                 "Return responses in this JSON format:\n"
-                "- 'kubectl_command': The kubectl command to run to satisfy the query.\n"
+                "- 'kubectl_command': The kubectl command to run to satisfy the query.\n\n"
                 
+                "If no command is possible, respond instead with:\n"
+                "- 'general_response': A concise answer to the question or helpful guidance.\n\n"
+
                 "Guidelines for generating commands:\n"
                 "1. **Counting Resources**:\n"
                 "   - Avoid using `wc -l` for counting, as it can be inaccurate. Instead, retrieve JSON output and count items programmatically.\n"
@@ -54,6 +57,7 @@ def interpret_query_with_gpt(query):
                 "Respond only with the JSON response without extra commentary. If the query is a general question unrelated to specific Kubernetes commands, respond with a 'general_response' JSON field instead of 'kubectl_command'."
             )
         }
+
 
 
         user_message = {"role": "user", "content": f"Interpret this query: {query}"}
