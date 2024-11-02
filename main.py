@@ -1,5 +1,4 @@
-# main.py
-
+#main.py
 import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
@@ -41,8 +40,9 @@ def create_query():
         
         # Get structured response from GPT with kubectl command
         structured_query = interpret_query_with_gpt(query)
-        if not structured_query or "error" in structured_query:
-            return jsonify(structured_query), 500
+        if not structured_query:
+            logging.error("Failed to get a structured query from GPT.")
+            return jsonify({"error": "Failed to interpret the query."}), 500
 
         # Execute kubectl command based on GPT's response, passing `query` as the second argument
         answer = handle_k8s_query(structured_query, query)
@@ -51,7 +51,7 @@ def create_query():
         return jsonify({"query": query, "answer": ensure_string(answer)})
 
     except Exception as e:
-        logging.error(f"Error processing query: {str(e)}", exc_info=True)
+        logging.error(f"Unhandled exception: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error."}), 500
 
 
