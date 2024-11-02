@@ -14,7 +14,7 @@ def interpret_query_with_gpt(query, variant=1, error_feedback=None):
     """
     # Define base prompt variations
     base_message_content = (
-                    "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
+                "You are an AI assistant that interprets Kubernetes-related queries and returns structured JSON responses.\n"
                 "Your goal is to generate accurate 'kubectl' commands for Kubernetes clusters when possible. Each command should directly retrieve the requested data if available.\n"
                 "If a query does not require a Kubernetes command, provide a general response in JSON format.\n\n"
                 
